@@ -7,9 +7,9 @@ access control, and stock/payment integrity checks.
 
 ```bash
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+source venv/bin/activate       
 pip install -r requirements.txt
-cp .env.example .env            # then edit SECRET_KEY at minimum
+cp .env.example .env           
 ```
 
 By default the app uses a local SQLite file (`pos.db`) so it runs with zero
@@ -30,7 +30,7 @@ Docs at `http://localhost:8000/docs`.
 ## Creating the first admin
 
 Public registration (`POST /auth/register`) always creates a `cashier`
-account — it can never grant elevated roles, even if `role` is included in
+account it can never grant elevated roles, even if `role` is included in
 the request body. That's intentional: it closes off self-service privilege
 escalation. To create the first admin:
 
@@ -42,9 +42,9 @@ From there, an admin can promote other users via `PUT /users/{id}`.
 
 ## Roles
 
-- **cashier** — can create sales, take payments, register customers
-- **manager** — cashier permissions + manage products/categories/suppliers, approve refunds
-- **admin** — everything, including managing user accounts/roles
+- **cashier** : can create sales, take payments, register customers
+- **manager** : cashier permissions + manage products/categories/suppliers, approve refunds
+- **admin** : everything, including managing user accounts/roles
 
 ## Security notes
 
@@ -61,15 +61,33 @@ From there, an admin can promote other users via `PUT /users/{id}`.
   (`SELECT ... FOR UPDATE`) if you move to Postgres under real concurrency.
 - No stack traces or internals are ever returned to the client (global
   exception handler in `app/main.py`).
-- `SECRET_KEY` must be set explicitly in production (`.env` / environment) —
+- `SECRET_KEY` must be set explicitly in production (`.env` / environment) 
   the fallback is a random value that changes every restart.
 
 ## Tests
 
+Run the full suite locally:
+
 ```bash
+pip install -r requirements.txt   # if you haven't already
 pytest -v
 ```
 
-Tests run against an isolated in-memory SQLite database (see
-`tests/conftest.py`) — they never touch your real `pos.db` or Postgres
-instance.
+No extra setup needed: tests run against an isolated **in-memory SQLite**
+database created fresh for every test function (see `tests/conftest.py`
+and `tests/test_*.py`). They never touch your real `pos.db` file or a
+configured Postgres instance, and `DATABASE_URL` has no effect on them.
+
+Coverage includes, for every major entity (auth, users, categories,
+suppliers, customers, products, sales, sale items, payments, receipts):
+successful CRUD operations, validation errors (422s), missing-resource
+errors (404s), and role-based access failures (401/403s), plus the
+sale/payment business rules (stock checks, overpayment rejection, refund
+permissions) and the login lockout.
+
+### Continuous Integration
+
+Every push and pull request automatically runs the same suite via GitHub
+Actions (`.github/workflows/tests.yml`)  checkout, set up Python 3.10,
+`pip install -r requirements.txt`, then `pytest -v`. A red X on a PR means
+a test failed; check the "Tests" workflow run for details.
