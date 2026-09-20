@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app import models  # noqa: F401
+from app import models
 from app.core.security import hash_password
 from app.database import Base, get_db
 from app.main import app
@@ -47,8 +47,7 @@ def client(db_session):
 
 @pytest.fixture()
 def admin_header(client, db_session):
-    # Mirrors app/scripts/create_admin.py: admins are seeded directly, never
-    # created through the public registration endpoint.
+  
     admin = User(
         username="admin_user",
         email="admin@example.com",
@@ -68,7 +67,7 @@ def admin_header(client, db_session):
 def cashier_header(client):
     client.post(
         "/auth/register",
-        data={"username": "cashier_user", "email": "cashier@example.com", "password": "StrongPass1"},
+        json={"username": "cashier_user", "email": "cashier@example.com", "password": "StrongPass1"},
     )
     response = client.post("/auth/login", json={"username": "cashier_user", "password": "StrongPass1"})
     token = response.json()["access_token"]

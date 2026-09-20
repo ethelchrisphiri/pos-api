@@ -82,3 +82,59 @@ def test_only_manager_can_update_payment_status(client, admin_header, cashier_he
     allowed = client.patch(f"/payments/{payment_id}/status", json={"status": "REFUNDED"}, headers=admin_header)
     assert allowed.status_code == 200
     assert allowed.json()["status"] == "REFUNDED"
+
+
+def test_get_nonexistent_sale_returns_404(client, cashier_header):
+    response = client.get("/sales/9999", headers=cashier_header)
+    assert response.status_code == 404
+
+
+def test_sale_rejects_empty_items_list(client, cashier_header):
+    response = client.post("/sales/", json={"items": []}, headers=cashier_header)
+    assert response.status_code == 422
+
+
+def test_sale_rejects_nonexistent_product(client, cashier_header):
+    response = client.post(
+        "/sales/",
+        json={"items": [{"product_id": 9999, "quantity": 1}]},
+        headers=cashier_header,
+    )
+    assert response.status_code == 404
+
+
+def test_get_nonexistent_payment_returns_404(client, cashier_header):
+    response = client.get("/payments/9999", headers=cashier_header)
+    assert response.status_code == 404
+
+
+def test_payment_rejects_zero_amount(client, admin_header, cashier_header):
+    product_id = _create_product(client, admin_header, stock_qty=10)
+    sale_id = client.post(
+        "/sales/",
+        json={"items": [{"product_id": product_id, "quantity": 1}]},
+        headers=cashier_header,
+    ).json()["sale_id"]
+
+    response = client.post(
+        "/payments/",
+        json={"sale_id": sale_id, "method": "cash", "amount": "0"},
+        headers=cashier_header,
+    )
+    assert response.status_code == 422
+
+
+def test_payment_rejects_invalid_method(client, admin_header, cashier_header):
+    product_id = _create_product(client, admin_header, stock_qty=10)
+    sale_id = client.post(
+        "/sales/",
+        json={"items": [{"product_id": product_id, "quantity": 1}]},
+        headers=cashier_header,
+    ).json()["sale_id"]
+
+    response = client.post(
+        "/payments/",
+        json={"sale_id": sale_id, "method": "crypto", "amount": "2.50"},
+        headers=cashier_header,
+    )
+    assert response.status_code == 422
